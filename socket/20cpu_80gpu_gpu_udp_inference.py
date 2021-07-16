@@ -16,6 +16,7 @@ import time
 import socket
 from torch.multiprocessing import Process, Queue
 import io
+import sys
 
 label_tags = {
     0: 'T-Shirt', 
@@ -61,7 +62,11 @@ class Net(nn.Module):
 
     def forward(self, x):
         snd = x.to("cpu").numpy().tobytes()
+        snd_size = sys.getsizeof(snd)
+        print(sys.getsizeof(snd_size))
+        send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
+
         x = self.conv1(x)
         rcv, addr = receive_socket.recvfrom(46080)
         rcv = np.frombuffer(rcv, dtype=np.float32)
@@ -143,7 +148,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=False,
         transform=transform)

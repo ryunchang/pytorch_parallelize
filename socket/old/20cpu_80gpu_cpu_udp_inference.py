@@ -58,8 +58,6 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
-        rcv_size, addr = receive_socket.recvfrom(28)
-        while(rcv_size 
         rcv, addr = receive_socket.recvfrom(3136)
         rcv = np.frombuffer(rcv, dtype=np.float32)
         rcv = np.reshape(rcv, (1,1,28,28))
@@ -135,7 +133,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('../data',
+    testset = torchvision.datasets.FashionMNIST('./data',
         download=True,
         train=False,
         transform=transform)
