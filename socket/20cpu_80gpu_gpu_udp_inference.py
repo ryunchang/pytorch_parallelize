@@ -17,6 +17,7 @@ import socket
 from torch.multiprocessing import Process, Queue
 import io
 import sys
+import pickle
 
 label_tags = {
     0: 'T-Shirt', 
@@ -61,27 +62,23 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
-        snd = x.to("cpu").numpy().tobytes()
-        snd_size = sys.getsizeof(snd)
-        print(sys.getsizeof(snd_size))
-        send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
+        snd = pickle.dumps(x)
+        #snd_size = sys.getsizeof(snd)
+        #print(sys.getsizeof(snd_size))
+        #send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
-
+        print("전송완료")
         x = self.conv1(x)
-        rcv, addr = receive_socket.recvfrom(46080)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,20,24,24))
-        y = torch.from_numpy(rcv).to('cuda')
+        rcv, addr = receive_socket.recvfrom(460800)
+        y = pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         x = self.conv2(x)
-        rcv, addr = receive_socket.recvfrom(15360)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,60,8,8))
-        y = torch.from_numpy(rcv).to('cuda')
+        rcv, addr = receive_socket.recvfrom(153600)
+        y = pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
@@ -89,7 +86,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         return x
 
@@ -102,7 +99,10 @@ def inference(model, testset, device):
         print("-----------------------------")
         data_idx = np.random.randint(len(testset))
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
+        a = time.time()
         output = model(input_img)
+        b = time.time()
+        print("duration : ", b-a)
         _, argmax = torch.max(output, 1)
         pred = label_tags[argmax.item()]
         label = label_tags[testset[data_idx][1]]
@@ -118,7 +118,7 @@ def inference(model, testset, device):
         plt.imshow(plot_img, cmap=cmap)
         plt.axis('off')
         print("-----------------------------")
-    plt.show()      # If you want to measure inferencing time, comment out this line
+#    plt.show()      # If you want to measure inferencing time, comment out this line
 
 
 def main():

@@ -15,6 +15,7 @@ import numpy as np
 import time
 import socket
 import numpy
+import pickle
 from torch.multiprocessing import Process, Queue
 
 label_tags = {
@@ -58,27 +59,20 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
-        rcv_size, addr = receive_socket.recvfrom(28)
-        while(rcv_size 
-        rcv, addr = receive_socket.recvfrom(3136)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,1,28,28))
-        x = torch.from_numpy(rcv)
+        #rcv_size, addr = receive_socket.recvfrom(28)
+        #while(rcv_size 
+        rcv, addr = receive_socket.recvfrom(31360)
+        x = pickle.loads(rcv).to('cpu')
         x = self.conv1(x)
-        print(x.shape)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
-        rcv, addr = receive_socket.recvfrom(57600)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,100,12,12))
-        x = torch.from_numpy(rcv)
+        rcv, addr = receive_socket.recvfrom(576000)
+        x = pickle.loads(rcv).to('cpu')
         x = self.conv2(x)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         rcv, addr = receive_socket.recvfrom(102400)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,10))
-        x = torch.from_numpy(rcv)
+        x = pickle.loads(rcv).to('cpu')
         return x
 
 
@@ -89,7 +83,10 @@ def inference(model, testset, device):
         print("-----------------------------")
         data_idx = np.random.randint(len(testset))
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
+        a = time.time()
         output = model(input_img)
+        b = time.time()
+        print("duration : ", b-a)
         _, argmax = torch.max(output, 1)
         pred = label_tags[argmax.item()]
         label = label_tags[testset[data_idx][1]]
@@ -105,7 +102,7 @@ def inference(model, testset, device):
         plt.imshow(plot_img, cmap=cmap)
         plt.axis('off')
         print("-----------------------------")
-    plt.show()      # If you want to measure inferencing time, comment out this line
+#    plt.show()      # If you want to measure inferencing time, comment out this line
 
 
 def main():
