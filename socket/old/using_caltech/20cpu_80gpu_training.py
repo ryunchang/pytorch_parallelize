@@ -26,12 +26,11 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(30 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
-        self.trash1 = torch.zeros((1, 8, 220, 220,))
-        self.trash2 = torch.zeros((1, 24, 106, 106, ))
+        self.trash1 = torch.zeros((1, 8, 220, 220,)).to('cuda')
+        self.trash2 = torch.zeros((1, 24, 106, 106, )).to('cuda')
     
     def forward(self, x):
         x = self.conv1(x)
-        print(x.shape)
         x = torch.cat((x,self.trash1), 1)
         x = F.relu(x)
         x = self.pool(x)
@@ -135,7 +134,7 @@ def main():
     print("use_cude : ", use_cuda)
 
     #device = torch.device("cuda" if use_cuda else "cpu")
-    device1 = "cpu"
+    device1 = "cuda"
     device2 = "cuda"
 
     nThreads = 1 if use_cuda else 2 
@@ -153,10 +152,10 @@ def main():
         ])
 
     # datasets
-    trainset = torchvision.datasets.Caltech101('../../only_gpu/data',
+    trainset = torchvision.datasets.Caltech101('../../../data',
         download=True,
         transform=transform)
-    testset = torchvision.datasets.Caltech101('../../only_gpu/data',
+    testset = torchvision.datasets.Caltech101('../../../data',
         download=True,
         transform=transform)
  
@@ -191,7 +190,7 @@ def main():
     proc1 = Process(target=my_run, args=(device_args1,))
     proc2 = Process(target=my_run, args=(device_args2,))
     
-    num_processes = (proc1, )#proc2) 
+    num_processes = (proc1, proc2) 
     processes = []
     
     for procs in num_processes:
@@ -202,10 +201,10 @@ def main():
         proc.join()
 
     # Save model
-    torch.save(model1.state_dict(), "/home/yoon/Yoon/pytorch/research/socket/using_caltech/cpu_20:80.pth")
-    
+    torch.save(model1.state_dict(), "../../pth/caltech_cpu_20_80.pth")
+
     # Save model
-    #torch.save(model2.state_dict(), "/home/yoon/Yoon/pytorch/research/socket/using_caltech/gpu_20:80.pth")
+    torch.save(model2.state_dict(), "../../pth/caltech_gpu_20_80.pth")
 
 
 if __name__ == '__main__':
