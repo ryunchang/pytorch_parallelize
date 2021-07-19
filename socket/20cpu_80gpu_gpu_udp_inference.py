@@ -67,7 +67,6 @@ class Net(nn.Module):
         #print(sys.getsizeof(snd_size))
         #send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
-        print("전송완료")
         x = self.conv1(x)
         rcv, addr = receive_socket.recvfrom(460800)
         y = pickle.loads(rcv).to('cuda')

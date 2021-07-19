@@ -16,6 +16,7 @@ import time
 import socket
 import numpy
 from torch.multiprocessing import Process, Queue
+import pickle
 
 label_tags = {
     0: 'T-Shirt', 
@@ -50,7 +51,7 @@ receive_socket.bind((RCV_HOST, RCV_PORT))
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 2, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(3, 2, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
         self.conv2 = nn.Conv2d(10, 6, 5)
         self.fc1 = nn.Linear(30 * 53 * 53, 1000)
@@ -58,25 +59,18 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
-        rcv, addr = receive_socket.recvfrom(3136)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,3,224,224))
-        x = torch.from_numpy(rcv)
+        rcv, addr = receive_socket.recvfrom(31360)
+        x = pickle.loads(rcv).to('cpu')
         x = self.conv1(x)
-        print(x.shape)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
-        rcv, addr = receive_socket.recvfrom(57600)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,100,12,12))
-        x = torch.from_numpy(rcv)
+        rcv, addr = receive_socket.recvfrom(576000)
+        x = pickle.loads(rcv).to('cpu')
         x = self.conv2(x)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         rcv, addr = receive_socket.recvfrom(102400)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,10))
-        x = torch.from_numpy(rcv)
+        x = pickle.loads(rcv).to('cpu')
         return x
 
 
@@ -112,8 +106,8 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    cpu_pth_path = "../../../pth/caltech_cpu_20_80.pth"
-    gpu_pth_path = "../../../pth/caltech_gpu_20_80.pth"
+    cpu_pth_path = "../../../pth/caltech_cpu.pth"
+    gpu_pth_path = "../../../pth/caltech_gpu.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
@@ -128,15 +122,21 @@ def main():
     if platform.system() == 'Windows':
         nThreads =0 #if you use windows
 
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))])
+    transform = transforms.Compose([
+        transforms.RandomResizedCrop(size=256, scale=(0.8, 1.0)),
+        transforms.RandomRotation(degrees=15),
+        transforms.RandomHorizontalFlip(),
+        transforms.CenterCrop(size=224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406],
+                             [0.229, 0.224, 0.225])
+        ])
 
     # datasets
-    testset = torchvision.datasets.Caltech101('../../../data',
-        download=True,
-        train=False,
-        transform=transform)
+#    testset = torchvision.datasets.Caltech101('../../../data',
+#        download=True,
+#        transform=transform)
+    testset = torchvision.datasets.ImageFolder('../../../data', transform)
 
     test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
                                             shuffle=False, num_workers=nThreads)

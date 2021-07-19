@@ -16,6 +16,7 @@ import time
 import socket
 from torch.multiprocessing import Process, Queue
 import io
+import pickle
 
 label_tags = {
     0: 'T-Shirt', 
@@ -52,39 +53,38 @@ receive_socket.bind((RCV_HOST, RCV_PORT))
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 80, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(3, 8, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(100, 240, 5)
-        self.fc1 = nn.Linear(300 * 4 * 4, 1000)
-        self.fc2 = nn.Linear(1000, 10)
+        self.conv2 = nn.Conv2d(10, 24, 5)
+        self.fc1 = nn.Linear(30 * 53 * 53, 1000)
+        self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
+        #snd_size = sys.getsizeof(snd)
+        #print(sys.getsizeof(snd_size))
+        #send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         x = self.conv1(x)
-        rcv, addr = receive_socket.recvfrom(46080)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,20,24,24))
-        y = torch.from_numpy(rcv).to('cuda')
+        rcv, addr = receive_socket.recvfrom(460800)
+        y = pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         x = self.conv2(x)
-        rcv, addr = receive_socket.recvfrom(15360)
-        rcv = np.frombuffer(rcv, dtype=np.float32)
-        rcv = np.reshape(rcv, (1,60,8,8))
-        y = torch.from_numpy(rcv).to('cuda')
+        rcv, addr = receive_socket.recvfrom(153600)
+        y = pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
-        x = x.view(-1, 300 * 4 * 4)
+        x = x.view(-1, 30 * 53 * 53)
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        snd = x.to("cpu").numpy().tobytes()
+        snd = pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         return x
 
@@ -122,8 +122,8 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/cpu_20:80.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/gpu_20:80.pth"
+    cpu_pth_path = "../../../pth/caltech_cpu.pth"
+    gpu_pth_path = "../../../pth/caltech_gpu.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
@@ -143,10 +143,12 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
-        download=True,
-        train=False,
-        transform=transform)
+#    testset = torchvision.datasets.FashionMNIST('../../../data',
+#        download=True,
+#        train=False,
+#        transform=transform)
+
+    testset = torchvision.datasets.ImageFolder('../../../data', transform)
 
     test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
                                             shuffle=False, num_workers=nThreads)

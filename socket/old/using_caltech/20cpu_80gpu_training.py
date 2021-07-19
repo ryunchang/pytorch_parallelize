@@ -58,7 +58,6 @@ class Net2(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        print(x.shape)
         x = torch.cat((x,self.trash1), 1)
         x = F.relu(x)
         x = self.pool(x)
@@ -201,10 +200,10 @@ def main():
         proc.join()
 
     # Save model
-    torch.save(model1.state_dict(), "../../pth/caltech_cpu_20_80.pth")
+    torch.save(model1.state_dict(), "../../../pth/caltech_cpu.pth")
 
     # Save model
-    torch.save(model2.state_dict(), "../../pth/caltech_gpu_20_80.pth")
+    torch.save(model2.state_dict(), "../../../pth/caltech_gpu.pth")
 
 
 if __name__ == '__main__':
