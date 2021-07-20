@@ -20,14 +20,14 @@ from torch.multiprocessing import Process, Queue
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 2, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(3, 20, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(10, 6, 5)
-        self.fc1 = nn.Linear(30 * 53 * 53, 1000)
+        self.conv2 = nn.Conv2d(100, 60, 5)
+        self.fc1 = nn.Linear(300 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
-        self.trash1 = torch.zeros((1, 8, 220, 220,)).to('cuda')
-        self.trash2 = torch.zeros((1, 24, 106, 106, )).to('cuda')
+        self.trash1 = torch.zeros((1, 80, 220, 220,)).to('cuda')
+        self.trash2 = torch.zeros((1, 240, 106, 106, )).to('cuda')
     
     def forward(self, x):
         x = self.conv1(x)
@@ -38,7 +38,7 @@ class Net(nn.Module):
         x = torch.cat((x,self.trash2), 1)
         x = F.relu(x)
         x = self.pool(x)
-        x = x.view(-1, 30 * 53 * 53)
+        x = x.view(-1, 300 * 53 * 53)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -47,14 +47,14 @@ class Net(nn.Module):
 class Net2(nn.Module):
     def __init__(self):
         super(Net2, self).__init__()
-        self.conv1 = nn.Conv2d(3, 8, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(3, 80, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(10, 24, 5)
-        self.fc1 = nn.Linear(30 * 53 * 53, 1000)
+        self.conv2 = nn.Conv2d(100, 240, 5)
+        self.fc1 = nn.Linear(300 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
-        self.trash1 = torch.zeros((1, 2, 220, 220,)).to("cuda")
-        self.trash2 = torch.zeros((1, 6, 106, 106, )).to("cuda")
+        self.trash1 = torch.zeros((1, 20, 220, 220,)).to("cuda")
+        self.trash2 = torch.zeros((1, 60, 106, 106, )).to("cuda")
 
     def forward(self, x):
         x = self.conv1(x)
@@ -65,7 +65,7 @@ class Net2(nn.Module):
         x = torch.cat((x,self.trash2), 1)
         x = F.relu(x)
         x = self.pool(x)
-        x = x.view(-1, 30 * 53 * 53)
+        x = x.view(-1, 300 * 53 * 53)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -200,10 +200,10 @@ def main():
         proc.join()
 
     # Save model
-    torch.save(model1.state_dict(), "../../../pth/caltech_cpu.pth")
+    torch.save(model1.state_dict(), "../../../pth/caltech_cpu_2080.pth")
 
     # Save model
-    torch.save(model2.state_dict(), "../../../pth/caltech_gpu.pth")
+    torch.save(model2.state_dict(), "../../../pth/caltech_gpu_2080.pth")
 
 
 if __name__ == '__main__':

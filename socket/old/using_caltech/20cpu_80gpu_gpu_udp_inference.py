@@ -104,9 +104,16 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
+        a = time.time()
         packet_sender(x)
+        b = time.time()
+        print("send duration" ,b-a)
         print("1전송 완료")
+
+        a = time.time()
         x = self.conv1(x)
+        b = time.time()
+        print("conv1 duration", b-a)
     
         rcv = packet_receiver()
         print("2수신 완료")

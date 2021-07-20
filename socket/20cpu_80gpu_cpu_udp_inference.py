@@ -111,8 +111,8 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/cpu_20:80.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/gpu_20:80.pth"
+    cpu_pth_path = "../pth/cpu_20:80.pth"
+    gpu_pth_path = "../pth/gpu_20:80.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())

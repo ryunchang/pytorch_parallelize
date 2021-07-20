@@ -62,12 +62,18 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
+        a = time.time()
         snd = _pickle.dumps(x)
         #snd_size = sys.getsizeof(snd)
         #print(sys.getsizeof(snd_size))
         #send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
+        b = time.time()
+        print("dump duration : ", b-a)
+        a = time.time()
         x = self.conv1(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
         rcv, addr = receive_socket.recvfrom(460800)
         y = _pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y), 1)
@@ -126,8 +132,8 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/cpu_20:80.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/gpu_20:80.pth"
+    cpu_pth_path = "../pth/cpu_20:80.pth"
+    gpu_pth_path = "../pth/gpu_20:80.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())

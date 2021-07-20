@@ -103,11 +103,11 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    trainset = torchvision.datasets.FashionMNIST('./data',
+    trainset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=True,
         transform=transform)
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=False,
         transform=transform)
@@ -144,7 +144,7 @@ def main():
 
 
     # Save model
-    torch.save(model.state_dict(), "/home/yoon/Yoon/pytorch/research/only_gpu/only_gpu.pth")
+    torch.save(model.state_dict(), "../pth/only_gpu.pth")
 
 
 if __name__ == '__main__':

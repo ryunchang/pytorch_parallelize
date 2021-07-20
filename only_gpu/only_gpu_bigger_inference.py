@@ -62,7 +62,10 @@ def inference(model, testset, device):
     for i in range(1, columns*rows+1):
         data_idx = np.random.randint(len(testset))
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
+        a = time.time()
         output = model(input_img)
+        b = time.time()
+        print("duration : ", b-a)
         _, argmax = torch.max(output, 1)
         pred = label_tags[argmax.item()]
         label = label_tags[testset[data_idx][1]]
@@ -88,7 +91,7 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    pth_path = "/home/yoon/Yoon/pytorch/research/only_gpu/only_gpu_bigger.pth"
+    pth_path = "../pth/only_gpu_bigger.pth"
 
 
     #print(torch.cuda.get_device_name(0))
@@ -107,7 +110,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=False,
         transform=transform)
