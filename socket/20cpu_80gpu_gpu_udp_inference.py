@@ -17,7 +17,7 @@ import socket
 from torch.multiprocessing import Process, Queue
 import io
 import sys
-import pickle
+import _pickle
 
 label_tags = {
     0: 'T-Shirt', 
@@ -62,22 +62,22 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
-        snd = pickle.dumps(x)
+        snd = _pickle.dumps(x)
         #snd_size = sys.getsizeof(snd)
         #print(sys.getsizeof(snd_size))
         #send_socket.sendto(str(snd_size).encode(), (SEND_HOST, SEND_PORT))
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         x = self.conv1(x)
         rcv, addr = receive_socket.recvfrom(460800)
-        y = pickle.loads(rcv).to('cuda')
+        y = _pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
-        snd = pickle.dumps(x)
+        snd = _pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         x = self.conv2(x)
         rcv, addr = receive_socket.recvfrom(153600)
-        y = pickle.loads(rcv).to('cuda')
+        y = _pickle.loads(rcv).to('cuda')
         x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
@@ -85,7 +85,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        snd = pickle.dumps(x)
+        snd = _pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         return x
 
@@ -117,7 +117,7 @@ def inference(model, testset, device):
         plt.imshow(plot_img, cmap=cmap)
         plt.axis('off')
         print("-----------------------------")
-#    plt.show()      # If you want to measure inferencing time, comment out this line
+    plt.show()      # If you want to measure inferencing time, comment out this line
 
 
 def main():

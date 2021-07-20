@@ -15,7 +15,7 @@ import numpy as np
 import time
 import socket
 import numpy
-import pickle
+import _pickle
 from torch.multiprocessing import Process, Queue
 
 label_tags = {
@@ -62,17 +62,17 @@ class Net(nn.Module):
         #rcv_size, addr = receive_socket.recvfrom(28)
         #while(rcv_size 
         rcv, addr = receive_socket.recvfrom(31360)
-        x = pickle.loads(rcv).to('cpu')
+        x = _pickle.loads(rcv).to('cpu')
         x = self.conv1(x)
-        snd = pickle.dumps(x)
+        snd = _pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         rcv, addr = receive_socket.recvfrom(576000)
-        x = pickle.loads(rcv).to('cpu')
+        x = _pickle.loads(rcv).to('cpu')
         x = self.conv2(x)
-        snd = pickle.dumps(x)
+        snd = _pickle.dumps(x)
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         rcv, addr = receive_socket.recvfrom(102400)
-        x = pickle.loads(rcv).to('cpu')
+        x = _pickle.loads(rcv).to('cpu')
         return x
 
 
