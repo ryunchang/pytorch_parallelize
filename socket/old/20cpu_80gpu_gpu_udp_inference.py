@@ -60,13 +60,22 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(100,10)
 
     def forward(self, x):
+        a = time.time()
         snd = x.to("cpu").numpy().tobytes()
+        b = time.time()
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
+        print("dump duraion : ", b-a)
+        a = time.time()
         x = self.conv1(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
         rcv, addr = receive_socket.recvfrom(46080)
+        a = time.time()
         rcv = np.frombuffer(rcv, dtype=np.float32)
         rcv = np.reshape(rcv, (1,20,24,24))
         y = torch.from_numpy(rcv).to('cuda')
+        b = time.time()
+        print("load duration : ", b-a)
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
@@ -97,7 +106,10 @@ def inference(model, testset, device):
         print("-----------------------------")
         data_idx = np.random.randint(len(testset))
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
+        a = time.time()
         output = model(input_img)
+        b = time.time()
+        print("duration : ", b-a)
         _, argmax = torch.max(output, 1)
         pred = label_tags[argmax.item()]
         label = label_tags[testset[data_idx][1]]
@@ -122,8 +134,8 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/cpu_20:80.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/gpu_20:80.pth"
+    cpu_pth_path = "../../pth/cpu_20:80.pth"
+    gpu_pth_path = "../../pth/gpu_20:80.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
@@ -143,7 +155,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../../data',
         download=True,
         train=False,
         transform=transform)

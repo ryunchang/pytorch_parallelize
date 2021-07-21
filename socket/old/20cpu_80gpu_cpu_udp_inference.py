@@ -63,7 +63,6 @@ class Net(nn.Module):
         rcv = np.reshape(rcv, (1,1,28,28))
         x = torch.from_numpy(rcv)
         x = self.conv1(x)
-        print(x.shape)
         snd = x.to("cpu").numpy().tobytes()
         send_socket.sendto(snd, (SEND_HOST, SEND_PORT))
         rcv, addr = receive_socket.recvfrom(57600)
@@ -112,8 +111,8 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/cpu_20:80.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/pth/gpu_20:80.pth"
+    cpu_pth_path = "../../pth/cpu_20:80.pth"
+    gpu_pth_path = "../../pth/gpu_20:80.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
@@ -133,7 +132,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../../data',
         download=True,
         train=False,
         transform=transform)

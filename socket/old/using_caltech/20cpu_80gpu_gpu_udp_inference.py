@@ -34,7 +34,7 @@ label_tags = {
 test_batch_size=1000
 columns = 6
 rows = 6
-
+size_buffer = 64
 
 # Socket
 SEND_HOST = '127.0.0.1'
@@ -50,45 +50,40 @@ receive_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 receive_socket.bind((RCV_HOST, RCV_PORT))
 
 MAX_PACKET_SIZE = 65503
+BYTE_SIZE = 33
+UDP_PAYLOAD_SIZE = MAXPACKET_SIZE + BYTE_SIZE
 
 def packet_sender(x):
     snd = _pickle.dumps(x)
     bound = 0
     size = sys.getsizeof(snd)
     send_socket.sendto(str(size).encode(), (SEND_HOST, SEND_PORT))
-    #print("사이즈 전송완료 : ", size)
-    _ = receive_socket.recvfrom(1)
-    #print("블록킹 팩터 통과")
+    _ = receive_socket.recvfrom(1)  # blocking factor
+
     while(True):
         end = bound + MAX_PACKET_SIZE
-        #print("end : ", end)
         if (size < end): 
             send_socket.sendto(snd[bound:size], (SEND_HOST, SEND_PORT))
-            #print(size, " < ", end)
             break
         else: 
             send_socket.sendto(snd[bound:end], (SEND_HOST, SEND_PORT))
         bound = end 
-        #print("bound : ", bound)
-        if not (size > MAX_PACKET_SIZE) : 
-            #print( size, " > ", MAX_PACKET_SIZE)
-            break
+        if not (size > MAX_PACKET_SIZE) : break
 
 def packet_receiver() :
     rcv = []
     rcv_size = 0
 
-    size = receive_socket.recvfrom(1024)
+    size = receive_socket.recvfrom(size_buffer)
+    print(sys.getsizeof(size))
     size = int(size[0].decode())
-    #print("사이즈 수신완료 : ", size )
     send_socket.sendto(b'', (SEND_HOST, SEND_PORT))
-    #print("블록킹 팩터 전송")
 
-    while(rcv_size < size-33) :
-        data = receive_socket.recvfrom(65536)
+    while(rcv_size < size-BYTE_SIZE) :
+        data = receive_socket.recvfrom(UDP_PAYLOAD_SIZE)
         rcv.append(data[0])
-        rcv_size += (sys.getsizeof(data[0])-33)
-        #print("rcv_size", rcv_size)
+        rcv_size += (sys.getsizeof(data[0])-BYTE_SIZE)
+
     rcv = b''.join(rcv)
     return rcv 
 
@@ -96,10 +91,10 @@ def packet_receiver() :
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 8, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(3, 12, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(10, 24, 5)
-        self.fc1 = nn.Linear(30 * 53 * 53, 1000)
+        self.conv2 = nn.Conv2d(20, 36, 5)
+        self.fc1 = nn.Linear(60 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
 
@@ -135,7 +130,7 @@ class Net(nn.Module):
         x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
-        x = x.view(-1, 30 * 53 * 53)
+        x = x.view(-1, 60 * 53 * 53)
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
@@ -175,8 +170,8 @@ def inference(model, testset, device):
 
 def main():
     test_batch_size=16
-    cpu_pth_path = "../../../pth/caltech_cpu.pth"
-    gpu_pth_path = "../../../pth/caltech_gpu.pth"
+    cpu_pth_path = "../../../pth/caltech_cpu_2080.pth"
+    gpu_pth_path = "../../../pth/caltech_gpu_2080.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())

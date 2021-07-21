@@ -88,10 +88,10 @@ def packet_receiver() :
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 2, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(3, 8, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(10, 6, 5)
-        self.fc1 = nn.Linear(30 * 53 * 53, 1000)
+        self.conv2 = nn.Conv2d(20, 24, 5)
+        self.fc1 = nn.Linear(60 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
 
@@ -153,8 +153,8 @@ def inference(model, testset, device):
 
 def main():
 
-    cpu_pth_path = "../../../pth/caltech_cpu.pth"
-    gpu_pth_path = "../../../pth/caltech_gpu.pth"
+    cpu_pth_path = "../../../pth/caltech_cpu_2080.pth"
+    gpu_pth_path = "../../../pth/caltech_gpu_2080.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
