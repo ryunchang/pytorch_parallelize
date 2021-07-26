@@ -102,11 +102,7 @@ def inference(model, testset, device):
 
 
 def main():
-    epochs = 3
-    learning_rate = 0.001
-    batch_size = 32
     test_batch_size=16
-    log_interval =100
     cpu_pth_path = "/home/yoon/Yoon/pytorch/research/part_train_Queue1/cpu.pth"
     gpu_pth_path = "/home/yoon/Yoon/pytorch/research/part_train_Queue1/gpu.pth"
 
