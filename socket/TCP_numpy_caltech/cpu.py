@@ -87,9 +87,6 @@ class Net(nn.Module):
         x = receiver((1,20,110,110))
         x = self.conv2(x)
         sender(x)
-        
-        # rcv = packet_receiver()
-        # x = pickle.loads(rcv).to(device)
 
         return x
 
@@ -101,7 +98,7 @@ def inference(model, testset, device):
 
 
 def main():
-    cpu_pth_path = "../../pth/caltech_cpu_2080.pth"
+    cpu_pth_path = "../../pth/caltech_cpu_2_3.pth"
 
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
@@ -118,7 +115,7 @@ def main():
                              [0.229, 0.224, 0.225]) ])
 
     #datasets
-    testset = torchvision.datasets.Caltech101('../../data/caltech101',
+    testset = torchvision.datasets.Caltech101('../../data',
         download=True,
         transform=transform)
     #testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)

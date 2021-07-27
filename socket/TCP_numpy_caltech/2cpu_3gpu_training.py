@@ -26,8 +26,8 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(60 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
-        self.trash1 = torch.zeros((1, 12, 220, 220,)).to('cuda')
-        self.trash2 = torch.zeros((1, 36, 106, 106, )).to('cuda')
+        self.trash1 = torch.zeros((16, 12, 220, 220,)).to('cuda')
+        self.trash2 = torch.zeros((16, 36, 106, 106, )).to('cuda')
     
     def forward(self, x):
         x = self.conv1(x)
@@ -53,8 +53,8 @@ class Net2(nn.Module):
         self.fc1 = nn.Linear(60 * 53 * 53, 1000)
         self.fc2 = nn.Linear(1000, 101)
         self.fc3 = nn.Linear(100,10)
-        self.trash1 = torch.zeros((1, 8, 220, 220,)).to("cuda")
-        self.trash2 = torch.zeros((1, 24, 106, 106, )).to("cuda")
+        self.trash1 = torch.zeros((16, 8, 220, 220,)).to("cuda")
+        self.trash2 = torch.zeros((16, 24, 106, 106, )).to("cuda")
 
     def forward(self, x):
         x = self.conv1(x)
@@ -77,7 +77,7 @@ def train(log_interval, model, device, train_loader, optimizer, epoch):
     criterion = nn.CrossEntropyLoss() #defalut is mean of mini-batchsamples
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
-        print(target)
+        #print(target)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
@@ -122,10 +122,10 @@ def my_run(args):
 
 
 def main():
-    epochs = 1
+    epochs = 9
     learning_rate = 0.001
-    batch_size = 1
-    test_batch_size = 1
+    batch_size = 16
+    test_batch_size = 16
     log_interval = 100
 
     #print(torch.cuda.get_device_name(0))
@@ -152,24 +152,24 @@ def main():
         ])
 
     # datasets
-#    trainset = torchvision.datasets.Caltech101('../../data/caltech101',
-#        download=True,
-#        transform=transform)
-#    testset = torchvision.datasets.Caltech101('../../data/caltech101',
-#        download=True,
-#        transform=transform)
+    trainset = torchvision.datasets.Caltech101('../../data',
+        download=True,
+        transform=transform)
+    testset = torchvision.datasets.Caltech101('../../data',
+        download=True,
+        transform=transform)
     
-    trainset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)
-    testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform) 
+    # trainset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)
+    # testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform) 
     
     print(trainset)
+    print(testset)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                             shuffle=True, num_workers=nThreads)
 
 
     test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
                                             shuffle=False, num_workers=nThreads)
-
 
     # model
     model1 = Net().to(device1)
@@ -205,10 +205,10 @@ def main():
         proc.join()
 
     # Save model
-    #torch.save(model1.state_dict(), "../../../pth/caltech_cpu_2080.pth")
+    #torch.save(model1.state_dict(), "../../pth/caltech_cpu_2_3.pth")
 
     # Save model
-    #torch.save(model2.state_dict(), "../../../pth/caltech_gpu_2080.pth")
+    torch.save(model2.state_dict(), "../../pth/caltech_gpu_2_3.pth")
 
 
 if __name__ == '__main__':
