@@ -77,6 +77,7 @@ def train(log_interval, model, device, train_loader, optimizer, epoch):
     criterion = nn.CrossEntropyLoss() #defalut is mean of mini-batchsamples
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
+        print(target)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
@@ -151,17 +152,17 @@ def main():
         ])
 
     # datasets
-#    trainset = torchvision.datasets.Caltech101('../../../data',
+#    trainset = torchvision.datasets.Caltech101('../../data/caltech101',
 #        download=True,
 #        transform=transform)
-#    testset = torchvision.datasets.Caltech101('../../../data',
+#    testset = torchvision.datasets.Caltech101('../../data/caltech101',
 #        download=True,
 #        transform=transform)
     
-    trainset = torchvision.datasets.ImageFolder('../../../data', transform)
-    testset = torchvision.datasets.ImageFolder('../../../data', transform) 
+    trainset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)
+    testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform) 
     
-    
+    print(trainset)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                             shuffle=True, num_workers=nThreads)
 
@@ -207,7 +208,7 @@ def main():
     #torch.save(model1.state_dict(), "../../../pth/caltech_cpu_2080.pth")
 
     # Save model
-    torch.save(model2.state_dict(), "../../../pth/caltech_gpu_2080.pth")
+    #torch.save(model2.state_dict(), "../../../pth/caltech_gpu_2080.pth")
 
 
 if __name__ == '__main__':
