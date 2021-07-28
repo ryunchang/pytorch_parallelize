@@ -46,12 +46,12 @@ def sender(x):
     snd = x.to("cpu").numpy().tobytes()
     bound = 0
     size = sys.getsizeof(snd)
-    print(">>>>>>>>>>", size)
+    #print(">>>>>>>>>>", size)
     connection_socket.send(str(size).encode())
     a = connection_socket.recv(1)  # blocking factor
-    print(a)
+    #print(a)
     while(True):
-        print("sending index : ", bound)
+        #print("sending index : ", bound)
         end = bound + MAX_PACKET_SIZE
         if (size < end): 
             connection_socket.send(snd[bound:size])
@@ -66,13 +66,13 @@ def receiver(tensor_shape):
     rcv_size = 0
 
     size = connection_socket.recv(8)
-    print(">>>>>>", size)
+    #print(">>>>>>", size)
     size = int(size.decode())
     connection_socket.send(b'z')
     
-    print("total size : ", size)
+    #print("total size : ", size)
     while(rcv_size < size-BYTE_SIZE) :
-        print("receive size : ", rcv_size)
+        #print("receive size : ", rcv_size)
         data = connection_socket.recv(UDP_PAYLOAD_SIZE)
         rcv.append(data)
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
@@ -98,8 +98,14 @@ class Net(nn.Module):
         sender(x)
         b = time.time()
         print("TCP Send duration : ", b-a)
+        a = time.time()
         x = self.conv1(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
+        a = time.time()
         y = receiver((1,8,220,220))
+        b = time.time()
+        print("TCP Receive duration : ", b-a)
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
