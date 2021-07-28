@@ -11,6 +11,7 @@ import numpy as np
 import time
 import sys
 import socket
+import _pickle
 
 device = "cpu"
 columns = 6
@@ -29,7 +30,7 @@ client_socket.connect((HOST, PORT))
 
 
 def sender(x):
-    snd = x.to("cpu").numpy().tobytes()
+    snd = _pickle.dumps(x)
     bound = 0
     size = sys.getsizeof(snd)
     print(">>>>>>>>>>", size)
@@ -47,7 +48,7 @@ def sender(x):
         bound = end 
         if not (size > MAX_PACKET_SIZE) : break
 
-def receiver(tensor_shape):
+def receiver():
     rcv = []
     rcv_size = 0
 
@@ -60,14 +61,11 @@ def receiver(tensor_shape):
     while(rcv_size < size-BYTE_SIZE) :
         print("receive size : ", rcv_size)
         data = client_socket.recv(UDP_PAYLOAD_SIZE)
-        #print(data[0])
         rcv.append(data)
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 
     rcv = b''.join(rcv)
-    rcv = np.frombuffer(rcv, dtype=np.float32)
-    rcv = np.reshape(rcv, tensor_shape)
-    rcv = torch.from_numpy(rcv).to(device)
+    rcv = _pickle.loads(rcv).to(device)
     return rcv
 
 # CPU 
@@ -81,10 +79,10 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(1000, 101)
 
     def forward(self, x):
-        x = receiver((1,3,224,224))
+        x = receiver()
         x = self.conv1(x)
         sender(x)
-        x = receiver((1,20,110,110))
+        x = receiver()
         x = self.conv2(x)
         sender(x)
 
@@ -98,7 +96,7 @@ def inference(model, testset, device):
 
 
 def main():
-    cpu_pth_path = "../../pth/caltech_cpu_2080.pth"
+    cpu_pth_path = "../../pth/caltech_cpu_2_3.pth"
 
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)

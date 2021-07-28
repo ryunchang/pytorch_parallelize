@@ -15,7 +15,8 @@ import numpy as np
 import socket
 import time
 import sys
-from caltech_class import label_tags 
+import _pickle
+
 from matplotlib import font_manager, rc
 font_path = "/usr/share/fonts/truetype/nanum/NanumGothicCoding.ttf"
 font = font_manager.FontProperties(fname=font_path).get_name()
@@ -43,7 +44,7 @@ connection_socket, addr = server_socket.accept()
 print('Connected by', addr)
 
 def sender(x):
-    snd = x.to("cpu").numpy().tobytes()
+    snd = _pickle.dumps(x)
     bound = 0
     size = sys.getsizeof(snd)
     #print(">>>>>>>>>>", size)
@@ -61,7 +62,7 @@ def sender(x):
         bound = end 
         if not (size > MAX_PACKET_SIZE) : break
 
-def receiver(tensor_shape):
+def receiver():
     rcv = []
     rcv_size = 0
 
@@ -78,9 +79,7 @@ def receiver(tensor_shape):
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 
     rcv = b''.join(rcv)
-    rcv = np.frombuffer(rcv, dtype=np.float32)
-    rcv = np.reshape(rcv, tensor_shape)
-    rcv = torch.from_numpy(rcv).to(device)
+    rcv = _pickle.loads(rcv).to(device)
     return rcv
 
 # CUDA 
@@ -103,7 +102,7 @@ class Net(nn.Module):
         b = time.time()
         print("conv1 duration : ", b-a)
         a = time.time()
-        y = receiver((1,8,220,220))
+        y = receiver()
         b = time.time()
         print("TCP Receive duration : ", b-a)
         x = torch.cat((x,y), 1)
@@ -111,7 +110,7 @@ class Net(nn.Module):
         x = self.pool(x)
         sender(x)
         x = self.conv2(x)
-        y = receiver((1,24,106,106))
+        y = receiver()
         x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
@@ -150,7 +149,7 @@ def inference(model, testset, device):
 
 def main():
     #gpu_pth_path = "../../../pth/caltech_gpu_2080.pth"
-    gpu_pth_path = "../../pth/caltech_gpu_2080.pth"
+    gpu_pth_path = "../../pth/caltech_gpu_2_3.pth"
 
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
