@@ -44,7 +44,10 @@ connection_socket, addr = server_socket.accept()
 print('Connected by', addr)
 
 def sender(x):
+    a = time.time()
     snd = _pickle.dumps(x)
+    b = time.time()
+    print("pickle 시간 : ", b-a)
     bound = 0
     size = sys.getsizeof(snd)
     #print(">>>>>>>>>>", size)
@@ -79,7 +82,10 @@ def receiver():
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 
     rcv = b''.join(rcv)
+    a = time.time()
     rcv = _pickle.loads(rcv).to(device)
+    b = time.time()
+    print("unpickle 시간 : ", b-a)
     return rcv
 
 # CUDA 
@@ -93,18 +99,24 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(1000, 101)
 
     def forward(self, x):
-        a = time.time()
+        # a = time.time()
+        # sender(x)
+        # b = time.time()
+        # print("TCP Send duration : ", b-a)
+        # a = time.time()
+        # x = self.conv1(x)
+        # b = time.time()
+        # print("conv1 duration : ", b-a)
+        # a = time.time()
+        # y = receiver()
+        # b = time.time()
+        # print("TCP Receive duration : ", b-a)
+
         sender(x)
-        b = time.time()
-        print("TCP Send duration : ", b-a)
-        a = time.time()
         x = self.conv1(x)
-        b = time.time()
-        print("conv1 duration : ", b-a)
-        a = time.time()
         y = receiver()
-        b = time.time()
-        print("TCP Receive duration : ", b-a)
+
+
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)

@@ -36,16 +36,8 @@ def sender(x):
     client_socket.send(str(size).encode())
     _ = client_socket.recv(1)  # blocking factor
 
-    while(True):
-        print("sending index : ", bound)
-        end = bound + MAX_PACKET_SIZE
-        if (size < end): 
-            client_socket.send(snd[bound:size])
-            break
-        else: 
-            client_socket.send(snd[bound:end])
-        bound = end 
-        if not (size > MAX_PACKET_SIZE) : break
+    client_socket.send(snd) 
+
 
 def receiver(tensor_shape):
     rcv = []
@@ -53,14 +45,12 @@ def receiver(tensor_shape):
 
     size = client_socket.recv(8)
     print(">>>>>>", size)
-    size = int(size.decode())
+    size = int(size.decode())-BYTE_SIZE
     client_socket.send(b'z')
     
     print("total size : ", size)
-    while(rcv_size < size-BYTE_SIZE) :
-        print("receive size : ", rcv_size)
-        data = client_socket.recv(UDP_PAYLOAD_SIZE)
-        #print(data[0])
+    while(rcv_size < size) :  
+        data = client_socket.recv(min(size - rcv_size ,MAX_PACKET_SIZE))
         rcv.append(data)
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 

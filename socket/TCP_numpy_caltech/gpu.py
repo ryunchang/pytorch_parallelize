@@ -43,44 +43,38 @@ connection_socket, addr = server_socket.accept()
 print('Connected by', addr)
 
 def sender(x):
+    a = time.time()
     snd = x.to("cpu").numpy().tobytes()
+    b = time.time()
+    print("numpy 시간 : ", b-a)
     bound = 0
     size = sys.getsizeof(snd)
     #print(">>>>>>>>>>", size)
     connection_socket.send(str(size).encode())
     a = connection_socket.recv(1)  # blocking factor
-    #print(a)
-    while(True):
-        #print("sending index : ", bound)
-        end = bound + MAX_PACKET_SIZE
-        if (size < end): 
-            connection_socket.send(snd[bound:size])
-            break
-        else: 
-            connection_socket.send(snd[bound:end])
-        bound = end 
-        if not (size > MAX_PACKET_SIZE) : break
+
+    connection_socket.send(snd)
 
 def receiver(tensor_shape):
     rcv = []
     rcv_size = 0
 
     size = connection_socket.recv(8)
-    #print(">>>>>>", size)
-    size = int(size.decode())
+    size = int(size.decode())-BYTE_SIZE
     connection_socket.send(b'z')
-    
-    #print("total size : ", size)
-    while(rcv_size < size-BYTE_SIZE) :
-        #print("receive size : ", rcv_size)
-        data = connection_socket.recv(UDP_PAYLOAD_SIZE)
+
+    while(rcv_size < size) :
+        data = connection_socket.recv(min(size - rcv_size ,MAX_PACKET_SIZE))
         rcv.append(data)
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 
     rcv = b''.join(rcv)
+    a = time.time()
     rcv = np.frombuffer(rcv, dtype=np.float32)
     rcv = np.reshape(rcv, tensor_shape)
     rcv = torch.from_numpy(rcv).to(device)
+    b = time.time()
+    print("numpy load 시간 : ", b-a)
     return rcv
 
 # CUDA 
@@ -94,18 +88,24 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(1000, 101)
 
     def forward(self, x):
-        a = time.time()
+        # a = time.time()
+        # sender(x)
+        # b = time.time()
+        # print("TCP Send duration : ", b-a)
+        # a = time.time()
+        # x = self.conv1(x)
+        # b = time.time()
+        # print("conv1 duration : ", b-a)
+        # a = time.time()
+        # y = receiver((1,8,220,220))
+        # b = time.time()
+        # print("TCP Receive duration : ", b-a)
+
+
         sender(x)
-        b = time.time()
-        print("TCP Send duration : ", b-a)
-        a = time.time()
         x = self.conv1(x)
-        b = time.time()
-        print("conv1 duration : ", b-a)
-        a = time.time()
         y = receiver((1,8,220,220))
-        b = time.time()
-        print("TCP Receive duration : ", b-a)
+
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
