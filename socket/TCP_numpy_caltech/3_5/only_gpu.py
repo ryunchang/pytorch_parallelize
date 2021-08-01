@@ -27,16 +27,32 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(1000, 101)
 
     def forward(self, x):
+        a = time.time()
         x = self.conv1(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
+
         x = F.relu(x)
         x = self.pool(x)
+        a = time.time()
         x = self.conv2(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
+
         x = F.relu(x)
         x = self.pool(x)
+        a = time.time()
         x = self.conv3(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
+
         x = F.relu(x)
         x = self.pool(x)
+        a = time.time()
         x = self.conv4(x)
+        b = time.time()
+        print("conv1 duration : ", b-a)
+
         x = F.relu(x)
         x = self.pool(x)
 
@@ -74,7 +90,7 @@ def inference(model, testset, device):
 
 def main():
     #gpu_pth_path = "../../../pth/caltech_gpu_2080.pth"
-    gpu_pth_path = "../../pth/caltech_only_gpu.pth"
+    gpu_pth_path = "../../../pth/caltech_only_3_5_gpu.pth"
 
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
