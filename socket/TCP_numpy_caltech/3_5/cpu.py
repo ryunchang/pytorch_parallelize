@@ -87,7 +87,6 @@ class Net(nn.Module):
         x = self.conv4(x)
         sender(x)
 
-
         return x
 
 

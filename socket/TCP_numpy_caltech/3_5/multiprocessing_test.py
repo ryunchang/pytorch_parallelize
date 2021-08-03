@@ -23,7 +23,7 @@ font = font_manager.FontProperties(fname=font_path).get_name()
 rc('font', family=font)
 
 
-device = "cuda"
+#device = "cuda"
 columns = 6
 rows = 6
 
@@ -43,45 +43,46 @@ server_socket.listen()
 connection_socket, addr = server_socket.accept()
 print('Connected by', addr)
 
+
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect((HOST, PORT))
+
 def sender(x):
-    a = time.time()
     snd = x.to("cpu").numpy().tobytes()
-    b = time.time()
-    print("numpy화 시간 : ", b-a)
-    bound = 0
     size = sys.getsizeof(snd)
-    #print(">>>>>>>>>>", size)
-    connection_socket.send(str(size).encode())
-    a = connection_socket.recv(1)  # blocking factor
+    print(">>>>>>>>>>", size)
+    client_socket.send(str(size).encode())
+    _ = client_socket.recv(1)  # blocking factor
 
-    connection_socket.send(snd)
+    client_socket.send(snd) 
 
-def receiver(tensor_shape):
+
+def receiver(tensor_shape, device):
     rcv = []
     rcv_size = 0
 
-    size = connection_socket.recv(8)
+    size = client_socket.recv(8)
+    print(">>>>>>", size)
     size = int(size.decode())-BYTE_SIZE
-    connection_socket.send(b'z')
-
-    while(rcv_size < size) :
-        data = connection_socket.recv(min(size - rcv_size ,MAX_PACKET_SIZE))
+    client_socket.send(b'z')
+    
+    print("total size : ", size)
+    while(rcv_size < size) :  
+        data = client_socket.recv(min(size - rcv_size ,MAX_PACKET_SIZE))
         rcv.append(data)
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 
     rcv = b''.join(rcv)
-    # a = time.time()
     rcv = np.frombuffer(rcv, dtype=np.float32)
     rcv = np.reshape(rcv, tensor_shape)
     rcv = torch.from_numpy(rcv).to(device)
-    # b = time.time()
-    # print("numpy load 시간 : ", b-a)
     return rcv
 
+
 # CUDA 
-class Net(nn.Module):
+class Net_cuda(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super(Net_cuda, self).__init__()
         self.conv1 = nn.Conv2d(3, 20, 5) #in, out, filtersize
         self.conv2 = nn.Conv2d(32, 40, 5) 
         self.conv3 = nn.Conv2d(64, 80, 5)
@@ -92,14 +93,21 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(1000, 101)
 
     def forward(self, x):
+        # mutex lock
+        l = mp.Lock()
+
+        l.acquire()
         a = time.time()
         sender(x)
         b = time.time()
+        l.release()
         print("TCP Send1 duration : ", b-a)
 
+        l.acquire()
         a = time.time()
         x = self.conv1(x)
         b = time.time()
+        l.release()
         print("conv1 duration : ", b-a)
 
         y = receiver((1,12,220,220))
@@ -107,14 +115,18 @@ class Net(nn.Module):
         x = F.relu(x)
         x = self.pool(x)
 
+        l.acquire()
         a = time.time()
         sender(x)
         b = time.time()
+        l.release()
         print("TCP Send2 duration : ", b-a)
 
+        l.acquire()
         a = time.time()
         x = self.conv2(x)
         b = time.time()
+        l.release()
         print("conv2 duration : ", b-a)
 
         y = receiver((1,24,106,106))
@@ -122,14 +134,18 @@ class Net(nn.Module):
         x = F.relu(x)
         x = self.pool(x)
 
+        l.acquire()
         a = time.time()
         sender(x)
         b = time.time()
+        l.release()
         print("TCP Send3 duration : ", b-a)
         
+        l.acquire()
         a = time.time()
         x = self.conv3(x)
         b = time.time()
+        l.release()
         print("conv3 duration : ", b-a)
 
         y = receiver((1,48,49,49))
@@ -137,14 +153,18 @@ class Net(nn.Module):
         x = F.relu(x)
         x = self.pool(x)
 
+        l.acquire()
         a = time.time()
         sender(x)
         b = time.time()
+        l.release()
         print("TCP Send4 duration : ", b-a)
 
+        l.acquire()
         a = time.time()
         x = self.conv4(x)
         b = time.time()
+        l.release()
         print("conv4 duration : ", b-a)
 
         y = receiver((1,96,20,20))
@@ -159,8 +179,38 @@ class Net(nn.Module):
 
         return x
 
+# CPU 
+class Net_cpu(nn.Module):
+    def __init__(self):
+        super(Net_cpu, self).__init__()
+        self.conv1 = nn.Conv2d(3, 12, 5) #in, out, filtersize
+        self.conv2 = nn.Conv2d(32, 24, 5)
+        self.conv3 = nn.Conv2d(64, 48, 5)
+        self.conv4 = nn.Conv2d(128, 96, 5)
+        self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
 
-def inference(model, testset, device):
+        self.fc1 = nn.Linear(256 * 10 * 10, 1000)
+        self.fc2 = nn.Linear(1000, 101)
+
+    def forward(self, x):
+        x = receiver((1,3,224,224))
+        x = self.conv1(x)
+        sender(x)
+        x = receiver((1,32,110,110))
+        x = self.conv2(x)
+        sender(x)
+        x = receiver((1,64,53,53))
+        x = self.conv3(x)
+        sender(x)
+        x = receiver((1,128,24,24))
+        x = self.conv4(x)
+        sender(x)
+
+        return x
+
+
+
+def inference_cuda(model, testset, device):
     fig = plt.figure(figsize=(10,10))
     plt.title(device, pad=50)
     for i in range(1, columns*rows+1):
@@ -184,9 +234,22 @@ def inference(model, testset, device):
         print("-----------------------------")
     plt.show()      # If you want to measure inferencing time, comment out this line
 
+def inference_cpu(model, testset, device):
+    for _ in range(1, columns*rows+1):
+        input_img = testset[0][0].unsqueeze(dim=0).to(device) 
+        _ = model(input_img)
+
+
+def my_run(model, testset, device, pth_path):
+    model.load_state_dict(torch.load(pth_path), strict=False) 
+    model.eval()
+    if device == "cuda" :
+        inference_cuda(model, testset, device)
+    elif device == "cpu" :
+        inference_cpu(model, testset, device)
 
 def main():
-    #gpu_pth_path = "../../../pth/caltech_gpu_2080.pth"
+    cpu_pth_path = "../../../pth/caltech_cpu_3_5.pth"
     gpu_pth_path = "../../../pth/caltech_gpu_3_5.pth"
 
     use_cuda = torch.cuda.is_available()
@@ -215,19 +278,31 @@ def main():
     #testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)
 
     # model
-    model = Net().to(device)
+    model_cuda = Net_cuda().to("cuda")
+    model_cpu = Net_cpu().to("cpu")
 
-    model.load_state_dict(torch.load(gpu_pth_path), strict=False) 
-    model.eval()
     
     # Freeze model weights
-    for param in model.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
+    for param in model_cuda.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
+        param.requires_grad = False
+    for param in model_cpu.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
         param.requires_grad = False
 
-    a = time.time()
-    inference(model, testset, device)
-    b = time.time()
-    print("time : ", b - a)
+
+    proc1 = mp.Process(target=my_run, args=(model_cuda, testset, "cuda", cpu_pth_path))
+    proc2 = mp.Process(target=my_run, args=(model_cpu, testset, "cpu:", gpu_pth_path))
+
+    num_processes = (proc2, proc1) 
+    processes = []
+    
+    for procs in num_processes:
+        procs.start()
+        processes.append(procs)
+        #time.sleep(2)
+
+    for proc in processes:
+        proc.join()
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')# good solution !!!
     main()
