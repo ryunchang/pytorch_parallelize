@@ -156,7 +156,7 @@ def main():
     print("duration : ", stop_time - start_time)
 
     # Save model
-    torch.save(model.state_dict(), "../../../pth/caltech_3_5_only_gpu.pth")
+    torch.save(model.state_dict(), "../../../pth/caltech_only_gpu.pth")
 
 
 if __name__ == '__main__':

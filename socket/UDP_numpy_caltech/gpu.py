@@ -1,26 +1,96 @@
+from torch.utils import data
 import torchvision
 import torchvision.transforms as transforms
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import platform
+import torch.multiprocessing as mp
 
+import platform
 import matplotlib.pyplot as plt
+import matplotlib 
+matplotlib.font_manager._rebuild()
 import numpy as np
 
-import time 
+import socket
+import time
+import sys
 
+from matplotlib import font_manager, rc
+font_path = "/usr/share/fonts/truetype/nanum/NanumGothicCoding.ttf"
+font = font_manager.FontProperties(fname=font_path).get_name()
+rc('font', family=font)
+
+
+device = "cuda"
 columns = 6
 rows = 6
 
+
+# Socket
+SEND_HOST = '127.0.0.1'
+SEND_PORT = 9999
+
+RCV_HOST = '127.0.0.1'
+RCV_PORT = 9998
+
+MAX_PACKET_SIZE = 65503
+BYTE_SIZE = 33
+UDP_PAYLOAD_SIZE = MAX_PACKET_SIZE + BYTE_SIZE
+
+send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#send_socket.bind((SEND_HOST, SEND_PORT))
+
+receive_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+receive_socket.bind((RCV_HOST, RCV_PORT))
+
+def sender(x):
+    snd = x.to("cpu").numpy().tobytes()
+    bound = 0
+    size = sys.getsizeof(snd)
+    send_socket.sendto(str(size).encode(), (SEND_HOST, SEND_PORT))
+    _ = receive_socket.recvfrom(1)
+    while(True):
+        end = bound + MAX_PACKET_SIZE
+        if (size < end): 
+            send_socket.sendto(snd[bound:size], (SEND_HOST, SEND_PORT))
+            break
+        else: 
+            send_socket.sendto(snd[bound:end], (SEND_HOST, SEND_PORT))
+        bound = end 
+        if not (size > MAX_PACKET_SIZE) : break
+
+def receiver(tensor_shape):
+    rcv = []
+    rcv_size = 0
+
+    size = receive_socket.recvfrom(1024)
+    size = int(size[0].decode())
+    send_socket.sendto(b'', (SEND_HOST, SEND_PORT))
+
+    while(rcv_size < size-33) :
+        data = receive_socket.recvfrom(65536)
+        rcv.append(data[0])
+        rcv_size += (sys.getsizeof(data[0])-33)
+        #print("rcv_size", rcv_size)
+    rcv = b''.join(rcv)
+    # a = time.time()
+    rcv = np.frombuffer(rcv, dtype=np.float32)
+    rcv = np.reshape(rcv, tensor_shape)
+    rcv = torch.from_numpy(rcv).to(device)
+    # b = time.time()
+    # print("numpy load 시간 : ", b-a)
+    return rcv
+
+# CUDA 
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, 5) #in, out, filtersize
-        self.conv2 = nn.Conv2d(32, 64, 5)
-        self.conv3 = nn.Conv2d(64, 128, 5)
-        self.conv4 = nn.Conv2d(128, 256, 5)
+        self.conv1 = nn.Conv2d(3, 20, 5) #in, out, filtersize
+        self.conv2 = nn.Conv2d(32, 40, 5) 
+        self.conv3 = nn.Conv2d(64, 80, 5)
+        self.conv4 = nn.Conv2d(128, 160, 5)
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
 
         self.fc1 = nn.Linear(256 * 10 * 10, 1000)
@@ -28,40 +98,72 @@ class Net(nn.Module):
 
     def forward(self, x):
         a = time.time()
+        sender(x)
+        b = time.time()
+        print("TCP Send1 duration : ", b-a)
+
+        a = time.time()
         x = self.conv1(x)
         b = time.time()
         print("conv1 duration : ", b-a)
 
+        y = receiver((1,12,220,220))
+        x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
+
+        a = time.time()
+        sender(x)
+        b = time.time()
+        print("TCP Send2 duration : ", b-a)
+
         a = time.time()
         x = self.conv2(x)
         b = time.time()
-        print("conv1 duration : ", b-a)
+        print("conv2 duration : ", b-a)
 
+        y = receiver((1,24,106,106))
+        x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
+
+        a = time.time()
+        sender(x)
+        b = time.time()
+        print("TCP Send3 duration : ", b-a)
+        
         a = time.time()
         x = self.conv3(x)
         b = time.time()
-        print("conv1 duration : ", b-a)
+        print("conv3 duration : ", b-a)
 
+        y = receiver((1,48,49,49))
+        x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
+
+        a = time.time()
+        sender(x)
+        b = time.time()
+        print("TCP Send4 duration : ", b-a)
+
         a = time.time()
         x = self.conv4(x)
         b = time.time()
-        print("conv1 duration : ", b-a)
+        print("conv4 duration : ", b-a)
 
+        y = receiver((1,96,20,20))
+        x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
 
-        x = x.view(-1, 256 * 10 * 10)
+        x = x.view(-1,  256 * 10 * 10)
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
 
         return x
+
 
 def inference(model, testset, device):
     fig = plt.figure(figsize=(10,10))
@@ -90,13 +192,12 @@ def inference(model, testset, device):
 
 def main():
     #gpu_pth_path = "../../../pth/caltech_gpu_2080.pth"
-    gpu_pth_path = "../../../pth/caltech_only_gpu.pth"
+    gpu_pth_path = "../../pth/caltech_gpu_3_5.pth"
 
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
 
-    device = torch.device("cuda" if use_cuda else "cpu")
-    print("device : ", device)
+    #device = torch.device("cuda" if use_cuda else "cpu")
 
     nThreads = 1 if use_cuda else 2 
     if platform.system() == 'Windows':
@@ -113,7 +214,7 @@ def main():
         ])
 
     # datasets
-    testset = torchvision.datasets.Caltech101('../../../data',
+    testset = torchvision.datasets.Caltech101('../../data',
         download=True,
         transform=transform)
     #testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)

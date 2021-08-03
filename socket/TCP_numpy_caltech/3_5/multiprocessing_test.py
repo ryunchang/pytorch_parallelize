@@ -36,37 +36,27 @@ MAX_PACKET_SIZE = 65503
 BYTE_SIZE = 33
 UDP_PAYLOAD_SIZE = MAX_PACKET_SIZE + BYTE_SIZE
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.bind((HOST, PORT))
-server_socket.listen()
-connection_socket, addr = server_socket.accept()
-print('Connected by', addr)
+client_socket = 0
+connection_socket = 0
 
 
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((HOST, PORT))
-
-def sender(x):
+def sender_cpu(x):
     snd = x.to("cpu").numpy().tobytes()
     size = sys.getsizeof(snd)
-    print(">>>>>>>>>>", size)
     client_socket.send(str(size).encode())
     _ = client_socket.recv(1)  # blocking factor
 
     client_socket.send(snd) 
 
 
-def receiver(tensor_shape, device):
+def receiver_cpu(tensor_shape):
     rcv = []
     rcv_size = 0
 
     size = client_socket.recv(8)
-    print(">>>>>>", size)
     size = int(size.decode())-BYTE_SIZE
     client_socket.send(b'z')
     
-    print("total size : ", size)
     while(rcv_size < size) :  
         data = client_socket.recv(min(size - rcv_size ,MAX_PACKET_SIZE))
         rcv.append(data)
@@ -75,13 +65,47 @@ def receiver(tensor_shape, device):
     rcv = b''.join(rcv)
     rcv = np.frombuffer(rcv, dtype=np.float32)
     rcv = np.reshape(rcv, tensor_shape)
-    rcv = torch.from_numpy(rcv).to(device)
+    rcv = torch.from_numpy(rcv).to("cpu")
     return rcv
 
+def sender_cuda(x):
+    a = time.time()
+    snd = x.to("cpu").numpy().tobytes()
+    b = time.time()
+    print("numpy화 시간 : ", b-a)
+    bound = 0
+    size = sys.getsizeof(snd)
+    #print(">>>>>>>>>>", size)
+    connection_socket.send(str(size).encode())
+    a = connection_socket.recv(1)  # blocking factor
+
+    connection_socket.send(snd)
+
+def receiver_cuda(tensor_shape):
+    rcv = []
+    rcv_size = 0
+
+    size = connection_socket.recv(8)
+    size = int(size.decode())-BYTE_SIZE
+    connection_socket.send(b'z')
+
+    while(rcv_size < size) :
+        data = connection_socket.recv(min(size - rcv_size ,MAX_PACKET_SIZE))
+        rcv.append(data)
+        rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
+
+    rcv = b''.join(rcv)
+    # a = time.time()
+    rcv = np.frombuffer(rcv, dtype=np.float32)
+    rcv = np.reshape(rcv, tensor_shape)
+    rcv = torch.from_numpy(rcv).to("cuda")
+    # b = time.time()
+    # print("numpy load 시간 : ", b-a)
+    return rcv
 
 # CUDA 
 class Net_cuda(nn.Module):
-    def __init__(self):
+    def __init__(self, l):
         super(Net_cuda, self).__init__()
         self.conv1 = nn.Conv2d(3, 20, 5) #in, out, filtersize
         self.conv2 = nn.Conv2d(32, 40, 5) 
@@ -92,82 +116,82 @@ class Net_cuda(nn.Module):
         self.fc1 = nn.Linear(256 * 10 * 10, 1000)
         self.fc2 = nn.Linear(1000, 101)
 
-    def forward(self, x):
-        # mutex lock
-        l = mp.Lock()
+        self.lock = l;
 
-        l.acquire()
+    def forward(self, x):
+        print("----------------------")
+        self.lock.acquire()
         a = time.time()
-        sender(x)
+        sender_cuda(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("TCP Send1 duration : ", b-a)
 
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
         x = self.conv1(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("conv1 duration : ", b-a)
 
-        y = receiver((1,12,220,220))
+        y = receiver_cuda((1,12,220,220))
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
 
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
-        sender(x)
+        sender_cuda(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("TCP Send2 duration : ", b-a)
 
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
         x = self.conv2(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("conv2 duration : ", b-a)
 
-        y = receiver((1,24,106,106))
+        y = receiver_cuda((1,24,106,106))
         x = torch.cat((x,y),1)
         x = F.relu(x)
         x = self.pool(x)
 
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
-        sender(x)
+        sender_cuda(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("TCP Send3 duration : ", b-a)
         
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
         x = self.conv3(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("conv3 duration : ", b-a)
 
-        y = receiver((1,48,49,49))
+        y = receiver_cuda((1,48,49,49))
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
 
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
-        sender(x)
+        sender_cuda(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("TCP Send4 duration : ", b-a)
 
-        l.acquire()
+        self.lock.acquire()
         a = time.time()
         x = self.conv4(x)
         b = time.time()
-        l.release()
+        self.lock.release()
         print("conv4 duration : ", b-a)
 
-        y = receiver((1,96,20,20))
+        y = receiver_cuda((1,96,20,20))
         x = torch.cat((x,y), 1)
         x = F.relu(x)
         x = self.pool(x)
@@ -181,7 +205,7 @@ class Net_cuda(nn.Module):
 
 # CPU 
 class Net_cpu(nn.Module):
-    def __init__(self):
+    def __init__(self, l):
         super(Net_cpu, self).__init__()
         self.conv1 = nn.Conv2d(3, 12, 5) #in, out, filtersize
         self.conv2 = nn.Conv2d(32, 24, 5)
@@ -191,20 +215,21 @@ class Net_cpu(nn.Module):
 
         self.fc1 = nn.Linear(256 * 10 * 10, 1000)
         self.fc2 = nn.Linear(1000, 101)
+        self.lock = l;
 
     def forward(self, x):
-        x = receiver((1,3,224,224))
+        x = receiver_cpu((1,3,224,224))
         x = self.conv1(x)
-        sender(x)
-        x = receiver((1,32,110,110))
+        sender_cpu(x)
+        x = receiver_cpu((1,32,110,110))
         x = self.conv2(x)
-        sender(x)
-        x = receiver((1,64,53,53))
+        sender_cpu(x)
+        x = receiver_cpu((1,64,53,53))
         x = self.conv3(x)
-        sender(x)
-        x = receiver((1,128,24,24))
+        sender_cpu(x)
+        x = receiver_cpu((1,128,24,24))
         x = self.conv4(x)
-        sender(x)
+        sender_cpu(x)
 
         return x
 
@@ -214,7 +239,7 @@ def inference_cuda(model, testset, device):
     fig = plt.figure(figsize=(10,10))
     plt.title(device, pad=50)
     for i in range(1, columns*rows+1):
-        print("-----------------------------")
+        #print("-----------------------------")
         data_idx = np.random.randint(len(testset))
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
         output = model(input_img)
@@ -231,7 +256,7 @@ def inference_cuda(model, testset, device):
         plot_img = testset[data_idx][0][0,:,:]
         plt.imshow(plot_img, cmap=cmap)
         plt.axis('off')
-        print("-----------------------------")
+        #print("-----------------------------")
     plt.show()      # If you want to measure inferencing time, comment out this line
 
 def inference_cpu(model, testset, device):
@@ -241,12 +266,23 @@ def inference_cpu(model, testset, device):
 
 
 def my_run(model, testset, device, pth_path):
+    global connection_socket, client_socket
     model.load_state_dict(torch.load(pth_path), strict=False) 
     model.eval()
     if device == "cuda" :
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((HOST, PORT))
+        server_socket.listen()
+        connection_socket, addr = server_socket.accept()
+        print('Connected by', addr)
         inference_cuda(model, testset, device)
+
     elif device == "cpu" :
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((HOST, PORT))
         inference_cpu(model, testset, device)
+        
 
 def main():
     cpu_pth_path = "../../../pth/caltech_cpu_3_5.pth"
@@ -276,10 +312,12 @@ def main():
         download=True,
         transform=transform)
     #testset = torchvision.datasets.ImageFolder('../../data/caltech101', transform)
+    
+    l = mp.Lock()
 
     # model
-    model_cuda = Net_cuda().to("cuda")
-    model_cpu = Net_cpu().to("cpu")
+    model_cuda = Net_cuda(l).to("cuda")
+    model_cpu = Net_cpu(l).to("cpu")
 
     
     # Freeze model weights
@@ -289,16 +327,17 @@ def main():
         param.requires_grad = False
 
 
-    proc1 = mp.Process(target=my_run, args=(model_cuda, testset, "cuda", cpu_pth_path))
-    proc2 = mp.Process(target=my_run, args=(model_cpu, testset, "cpu:", gpu_pth_path))
 
-    num_processes = (proc2, proc1) 
+    proc1 = mp.Process(target=my_run, args=(model_cuda, testset, "cuda", gpu_pth_path))
+    proc2 = mp.Process(target=my_run, args=(model_cpu, testset, "cpu", cpu_pth_path))
+
+    num_processes = (proc1, proc2) 
     processes = []
-    
+
     for procs in num_processes:
         procs.start()
         processes.append(procs)
-        #time.sleep(2)
+        time.sleep(5)
 
     for proc in processes:
         proc.join()
