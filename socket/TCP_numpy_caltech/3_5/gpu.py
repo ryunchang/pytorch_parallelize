@@ -44,16 +44,10 @@ connection_socket, addr = server_socket.accept()
 print('Connected by', addr)
 
 def sender(x):
-    a = time.time()
     snd = x.to("cpu").numpy().tobytes()
-    b = time.time()
-    print("numpy화 시간 : ", b-a)
-    bound = 0
     size = sys.getsizeof(snd)
-    #print(">>>>>>>>>>", size)
     connection_socket.send(str(size).encode())
-    a = connection_socket.recv(1)  # blocking factor
-
+    _ = connection_socket.recv(1)  # blocking factor
     connection_socket.send(snd)
 
 def receiver(tensor_shape):
@@ -70,12 +64,10 @@ def receiver(tensor_shape):
         rcv_size += (sys.getsizeof(data)-BYTE_SIZE)
 
     rcv = b''.join(rcv)
-    # a = time.time()
     rcv = np.frombuffer(rcv, dtype=np.float32)
     rcv = np.reshape(rcv, tensor_shape)
     rcv = torch.from_numpy(rcv).to(device)
-    # b = time.time()
-    # print("numpy load 시간 : ", b-a)
+
     return rcv
 
 # CUDA 
