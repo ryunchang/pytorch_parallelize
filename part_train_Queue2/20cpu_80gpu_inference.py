@@ -72,41 +72,38 @@ class Net2(nn.Module):
         x = self.conv1(x)
         y = self.q1.get(True, None).to("cuda")
         x = torch.cat((x,y), 1)
-        x = F.relu(x)
-        x = self.pool(x)
-        #time.sleep(0.005)
+        x = self.pool(F.relu(x))
         self.q2.put(x)
         x = self.conv2(x)
         y = self.q1.get(True, None).to("cuda")
         x = torch.cat((x,y),1)
-        x = F.relu(x)
-        x = self.pool(x)
+        x = self.pool(F.relu(x))
         x = x.view(-1, 300 * 4 * 4)
         x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
+        x = self.fc2(F.relu(x))
         self.q2.put(x)
         return x
 
 
+def trash_inference(model, testset, device):
+    for _ in range(1, columns*rows+1):
+        input_img = testset[0][0].unsqueeze(dim=0).to(device) 
+        _ = model(input_img)
 
-def inference(model, testset, device, q):
+
+def inference(model, testset, device):
     fig = plt.figure(figsize=(10,10))
     plt.title(device, pad=50)
     for i in range(1, columns*rows+1):
         print("-----------------------------")
         data_idx = np.random.randint(len(testset))
-        if q.empty():
-            q.put(data_idx)
-        else:
-            data_idx = q.get(True, None)
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
         output = model(input_img)
         _, argmax = torch.max(output, 1)
         pred = label_tags[argmax.item()]
         label = label_tags[testset[data_idx][1]]
 
-        fig.add_subplot(rows, columns, i)
+        fig.add_subplot(rows, columns, i)   
         if pred == label:
             plt.title(pred + ', right !!')
             cmap = 'Blues'
@@ -120,26 +117,24 @@ def inference(model, testset, device, q):
     plt.show()      # If you want to measure inferencing time, comment out this line
 
 
-def my_run(model, testset, device, pth_path, q):
+def my_run(model, testset, device, pth_path):
     model.load_state_dict(torch.load(pth_path), strict=False) 
     model.eval()
-    a = time.time()
-    inference(model, testset, device, q)
-    b = time.time()
-    print("time : ", b - a)
+    if device == "cuda":
+        a = time.time()
+        inference(model, testset, device)
+        b = time.time()
+        print("time : ", b - a)
+    else :
+        trash_inference(model, testset, device)
+
 
 def main():
     q1 = Queue()    # CPU -> GPU
     q2 = Queue()    # GPU -> CPU
-    idx_q = Queue()
 
-    epochs = 3
-    learning_rate = 0.001
-    batch_size = 32
-    test_batch_size=16
-    log_interval =100
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/part_train_Queue2/cpu.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/part_train_Queue2/gpu.pth"
+    cpu_pth_path = "/home/yoon/Yoon/pytorch_research/pth/fashionMnist/cpu_20_80.pth"
+    gpu_pth_path = "/home/yoon/Yoon/pytorch_research/pth/fashionMnist/gpu_20_80.pth"
 
     #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
@@ -159,13 +154,10 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=False,
         transform=transform)
-
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
-                                            shuffle=False, num_workers=nThreads)
 
 
     # constant for classes
@@ -184,8 +176,8 @@ def main():
     for param in model2.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
         param.requires_grad = False
 
-    proc1 = Process(target=my_run, args=(model1, testset, device1, cpu_pth_path, idx_q))
-    proc2 = Process(target=my_run, args=(model2, testset, device2, gpu_pth_path, idx_q))
+    proc1 = Process(target=my_run, args=(model1, testset, device1, cpu_pth_path))
+    proc2 = Process(target=my_run, args=(model2, testset, device2, gpu_pth_path))
 
     num_processes = (proc2, proc1) 
     processes = []
@@ -193,7 +185,6 @@ def main():
     for procs in num_processes:
         procs.start()
         processes.append(procs)
-        #time.sleep(2)
 
     for proc in processes:
         proc.join()

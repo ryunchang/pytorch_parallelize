@@ -137,8 +137,8 @@ def main():
     test_batch_size=16
     log_interval =100
 
-    cpu_pth_path = "/home/yoon/Yoon/pytorch/research/part_train/cpu.pth"
-    gpu_pth_path = "/home/yoon/Yoon/pytorch/research/part_train/gpu.pth"
+    cpu_pth_path = "/home/yoon/Yoon/pytorch_research/pth/cpu_2_8.pth"
+    gpu_pth_path = "/home/yoon/Yoon/pytorch_research/pth/gpu_2_8.pth"
 
 
     #print(torch.cuda.get_device_name(0))
@@ -159,7 +159,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=False,
         transform=transform)

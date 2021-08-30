@@ -147,11 +147,11 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    trainset = torchvision.datasets.FashionMNIST('./data',
+    trainset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=True,
         transform=transform)
-    testset = torchvision.datasets.FashionMNIST('./data',
+    testset = torchvision.datasets.FashionMNIST('../data',
         download=True,
         train=False,
         transform=transform)
@@ -199,10 +199,10 @@ def main():
         proc.join()
 
     # Save model
-    torch.save(model1.state_dict(), "/home/yoon/Yoon/pytorch/research/part_train_test/cpu.pth")
+    torch.save(model1.state_dict(), "/home/yoon/Yoon/pytorch_research/pth/fashionMnist/cpu_20_80.pth")
     
     # Save model
-    torch.save(model2.state_dict(), "/home/yoon/Yoon/pytorch/research/part_train_test/gpu.pth")
+    torch.save(model2.state_dict(), "/home/yoon/Yoon/pytorch_research/pth/fashionMnist/gpu_20_80.pth")
 
 
 if __name__ == '__main__':
