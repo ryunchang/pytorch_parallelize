@@ -52,7 +52,7 @@ class Net(nn.Module):
         x = self.conv2(x)
         self.q1.put(x)
         x = self.q2.get(True, None).to("cpu")
-        return x
+        #return x
 
 # CUDA AND MAIN
 class Net2(nn.Module):
@@ -88,7 +88,7 @@ class Net2(nn.Module):
 def trash_inference(model, testset, device):
     for _ in range(1, columns*rows+1):
         input_img = testset[0][0].unsqueeze(dim=0).to(device) 
-        _ = model(input_img)
+        model(input_img)
 
 
 def inference(model, testset, device):
@@ -154,7 +154,7 @@ def main():
         transforms.Normalize((0.5,), (0.5,))])
 
     # datasets
-    testset = torchvision.datasets.FashionMNIST('../data',
+    testset = torchvision.datasets.FashionMNIST('../data/FashionMNIST',
         download=True,
         train=False,
         transform=transform)
@@ -190,5 +190,5 @@ def main():
         proc.join()
 
 if __name__ == '__main__':
-    torch.multiprocessing.set_start_method('spawn')# good solution !!!
+    torch.multiprocessing.set_start_method('spawn')     # good solution !!!
     main()
